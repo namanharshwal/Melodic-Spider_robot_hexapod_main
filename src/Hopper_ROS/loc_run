@@ -1,0 +1,1 @@
+tokei $(git ls-files | rg -v 'vision/data')

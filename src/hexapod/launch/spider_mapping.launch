@@ -1,0 +1,26 @@
+<launch>
+  <include file="$(find sick_scan_xd)/launch/sick_multiscan.launch">
+    <arg name="hostname" value="192.168.0.1"/>
+    <arg name="udp_receiver_ip" value="192.168.0.10"/>
+  </include>
+
+  <node pkg="tf" type="static_transform_publisher" name="hexapod_to_lidar" args="0 0 0.15 0 0 0 base_link cloud 100" />
+
+  <node pkg="slam_toolbox" type="async_slam_toolbox_node" name="slam_toolbox" output="screen">
+    <rosparam command="load" file="$(find slam_toolbox)/config/mapper_params_online_async.yaml" />
+    <param name="odom_frame" value="odom"/>
+    <param name="map_frame" value="map"/>
+    <param name="base_frame" value="base_link"/>
+    <remap from="scan" to="/scan"/> 
+  </node>
+
+  <node pkg="octomap_server" type="octomap_server_node" name="octomap_server">
+    <param name="resolution" value="0.05" />
+    
+    <param name="frame_id" type="string" value="map" />
+    <param name="base_frame_id" type="string" value="base_link" />
+    <param name="sensor_model/max_range" value="5.0" />
+    
+    <remap from="cloud_in" to="/cloud_unstructured_fullframe" />
+  </node>
+</launch>

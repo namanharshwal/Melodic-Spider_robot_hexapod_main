@@ -1,0 +1,21 @@
+<launch>
+  <!-- ?? SIMULATION (Gazebo headless) ?? -->
+  <include file="$(find phantomx_gazebo)/launch/phantomx_gazebo.launch"/>
+
+  <!-- ?? LSC-32 Hardware Bridge ?? -->
+  <node name="lsc32_hardware_bridge"
+        pkg="phantomx_gazebo"
+        type="lsc32_hardware_bridge.py"
+        output="screen"
+        respawn="true"
+        respawn_delay="3.0"/>
+
+  <!-- ?? Teleop keyboard control ?? -->
+  <node name="teleop"
+        pkg="teleop_twist_keyboard"
+        type="teleop_twist_keyboard.py"
+        output="screen">
+    <remap from="cmd_vel" to="/phantomx/cmd_vel"/>
+  </node>
+</launch>
+

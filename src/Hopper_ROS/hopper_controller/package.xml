@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>hopper_controller</name>
+  <version>0.0.0</version>
+  <description>The hopper_controller package</description>
+  <maintainer email="dweis7@gmail.com">David Weis</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>message_generation</build_depend>
+  <depend>rospy</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>hopper_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>visualization_msgs</depend>
+  <depend>tf</depend>
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
+  <depend>hopper_feet_sensors</depend>
+  <depend>python-pyquaternion-pip</depend>
+  <exec_depend>message_runtime</exec_depend>
+
+</package>

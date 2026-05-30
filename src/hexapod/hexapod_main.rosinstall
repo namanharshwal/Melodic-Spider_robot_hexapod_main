@@ -1,0 +1,24 @@
+# Main launch repos
+- git: {local-name: hexapod, uri: 'git@github.com:PeterL328/hexapod.git', version: master}
+
+# Control panel repos
+- git: {local-name: hexapod_control_panel, uri: 'git@github.com:PeterL328/hexapod_control_panel.git', version: master}
+
+# Description repos
+- git: {local-name: hexapod_description, uri: 'git@github.com:PeterL328/hexapod_description.git', version: master}
+
+# Simulation repos
+- git: {local-name: hexapod_gazebo, uri: 'git@github.com:PeterL328/hexapod_gazebo.git', version: master}
+
+# Control repos
+- git: {local-name: hexapod_control, uri: 'git@github.com:PeterL328/hexapod_control.git', version: master}
+
+# Messages repos
+- git: {local-name: hexapod_msgs, uri: 'git@github.com:PeterL328/hexapod_msgs.git', version: master}
+
+# Sensor repos
+- git: {local-name: hexapod_camera, uri: 'git@github.com:UbiquityRobotics/raspicam_node.git', version: kinetic}
+- git: {local-name: hexapod_driver, uri: 'git@github.com:PeterL328/hexapod_driver.git', version: master}
+
+# Web server repos
+- git: {local-name: hexapod_web_server, uri: 'git@github.com:RobotWebTools/web_video_server.git', version: master}

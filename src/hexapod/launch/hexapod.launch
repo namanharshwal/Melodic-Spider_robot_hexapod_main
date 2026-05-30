@@ -1,0 +1,6 @@
+<launch>
+    <include file="$(find hexapod)/launch/hexapod_driver.launch">
+    </include>
+    <include file="$(find hexapod)/launch/hexapod_control.launch">
+    </include>
+</launch>

@@ -1,0 +1,19 @@
+# ROS Workspace folders to ignore
+build/
+devel/
+install/
+logs/
+.catkin_workspace
+
+# Ignore the catkin-generated CMakeLists.txt at the root of src
+src/CMakeLists.txt
+
+# Python caches and compiled files
+__pycache__/
+*.py[cod]
+*.class
+
+# OS generated files
+.DS_Store
+*~
+*.deb

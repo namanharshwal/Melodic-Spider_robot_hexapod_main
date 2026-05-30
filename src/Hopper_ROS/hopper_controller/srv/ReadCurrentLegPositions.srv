@@ -1,0 +1,3 @@
+std_msgs/Header header
+---
+hopper_controller/HexapodLegPositions leg_positions
