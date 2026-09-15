@@ -1,0 +1,7 @@
+image: /home/nammy/SD_Storage/catkin_ws/src/maps/lab_505_marik_center.pgm
+resolution: 0.050000
+origin: [-3.872136, -8.306994, 0.000000]
+negate: 0
+occupied_thresh: 0.65
+free_thresh: 0.196
+

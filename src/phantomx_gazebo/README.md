@@ -1,84 +1,42 @@
-## phantomx_gazebo
+# Spider Robot Movement Logic & Sensor Integration
 
-ROS package providing Gazebo simulation of the Phantom X Hexapod robot.
-Also provides a Python interface to the joints and some walk capabilities.
+This document outlines the core logic and architecture implemented for the physical Spider Robot (Hexapod), powered by the Jetson Eagle 101, Hiwonder LSC-32, and SICK MultiScan 100 LiDAR. The simulated Gazebo dependencies have been decoupled to allow pure hardware execution.
 
-These have been tested in simulation and need some work to be used on the real robot, do not use as-is.
+## 1. Spider Gait Engine (`spider_gait_engine.py`)
 
-![Phantom X model in Gazebo](/phantomx.png?raw=true "Phantom X model in Gazebo")
+The movement logic is controlled by a True Cartesian Inverse Kinematics (IK) engine, coupled with a robust Finite State Machine (FSM) to safely manage the physical transitions of the servos under structural load.
 
+### Finite State Machine (FSM)
+To prevent the robot from crashing into the ground or burning out the servos during deployment, the engine uses time-parameterized S-Curve (Trapezoidal Velocity) interpolation:
 
-## Install
+* **[STATE: IDLE / SITTING]**: (0.0 to 5.0 seconds). The node clamps all 18 servos to their Flat Pose (0.0 rad) to allow the servos to pre-tension and establish holding torque before lifting the chassis.
+* **[STATE: LIFTING / DEPLOYING]**: (5.0 to 7.0 seconds). A geometric S-Curve dynamically calculates the Cartesian IK required to push the robot's Z-axis (`STAND_Z = -0.15m`) upwards, unfolding the legs synchronously so the feet do not slide on the ground.
+* **[STATE: WALKING]**: The core walking loop is activated. The system listens to `/cmd_vel` and passes velocities through an acceleration filter (0.1) at 50Hz to mimic physical inertia and prevent sudden jerks.
+* **[STATE: CONTROLLED DESCENT]**: Triggered via `rospy.on_shutdown()`. When the node is killed, it immediately locks the walking engine and runs a reverse 2.0-second S-Curve interpolation back to the Flat Pose before shutting down, ensuring the robot sits safely.
 
-Clone in your catkin workspace and catkin_make it.
-Make sure you also have the following packages in your workspace
-* phantomx_description: https://github.com/HumaRobotics/phantomx_description
-* phantomx_control: https://github.com/HumaRobotics/phantomx_control
-    
-## Usage
+### Gait Parameters
+* **Cycle Time:** 0.8 seconds (Tripod Gait)
+* **Strides:** `STRIDE_X = 0.05` (Forward/Back), `STRIDE_Y = 0.02` (Strafe), `STRIDE_T = 0.04` (Turn)
+* **Stance Height:** `STAND_Z = -0.15m`
 
-You can launch the simulation with:
+## 2. IMU & Kinematic Odometry (`spider_odometry.py`)
 
-    roslaunch phantomx_gazebo phantomx_gazebo.launch
-    
-PRESS PLAY IN GAZEBO ONLY WHEN EVERYTHING IS LOADED (wait for controllers)
+To prevent the SLAM map from distorting during rotation and strafing, the odometry is perfectly synchronized with the hardware kinematics and the SICK industrial IMU.
 
-You can run a walk demo with:
+* **SICK IMU Integration:** The external IMU on `/imu/data` is magnetically corrupted by the 18 high-power servos during movement. The odometry strictly ignores it and subscribes to the flawless internal IMU of the SICK LiDAR on `/multiScan/imu` (fallback to `/imu`).
+* **Yaw Tracking:** Physical slipping of the legs during strafing/turning is tracked perfectly using the SICK IMU's ENU (East-North-Up) Yaw.
+* **Acceleration Inertia Filter:** The odometry perfectly traces the physical startup and slowdown phases of the hexapod by mirroring the `0.1` smoothing filter of the gait engine using time-based integration (`5.0 * dt`).
+* **Separated Universes:** Odometry publishes a perfectly flat `base_link` frame for 2D `slam_toolbox`, and a true tilted `base_link_3d` frame for 3D `octomap_server`.
 
-    rosrun phantomx_gazebo walker_demo.py
+## 3. LiDAR & SLAM Synchronization (`mapping_filter.py`)
 
-## ROS API
+To fix "jumping" pointclouds and SLAM TF extrapolation errors (which happen when hardware clocks drift):
 
-All topics are provided in the /phantomx namespace.
+* **Timestamp Synchronization:** The script intercepts the raw LaserScans from the SICK MultiScan and overwrites the hardware `header.stamp` with the exact `rospy.Time.now()` of the Jetson. This perfectly binds the laser scans to the exact millisecond of the generated odometry.
+* **Continuous Mapping:** Scans are routed directly to `cloud_flat` at a continuous 15Hz to maintain a permanent lock on the walls during SLAM scan-matching.
 
-Sensors:
-
-    /phantomx/joint_states
-
-Actuators (radians for position control, arbitrary normalized speed for cmd_vel):
-
-    /phantomx/cmd_vel
-    /phantomx/j_c1_lf_position_controller/command
-    /phantomx/j_c1_lm_position_controller/command
-    /phantomx/j_c1_lr_position_controller/command
-    /phantomx/j_c1_rf_position_controller/command
-    /phantomx/j_c1_rm_position_controller/command
-    /phantomx/j_c1_rr_position_controller/command
-    /phantomx/j_thigh_lf_position_controller/command
-    /phantomx/j_thigh_lm_position_controller/command
-    /phantomx/j_thigh_lr_position_controller/command
-    /phantomx/j_thigh_rf_position_controller/command
-    /phantomx/j_thigh_rm_position_controller/command
-    /phantomx/j_thigh_rr_position_controller/command
-    /phantomx/j_tibia_lf_position_controller/command
-    /phantomx/j_tibia_lm_position_controller/command
-    /phantomx/j_tibia_lr_position_controller/command
-    /phantomx/j_tibia_rf_position_controller/command
-    /phantomx/j_tibia_rm_position_controller/command
-    /phantomx/j_tibia_rr_position_controller/command
-
-
-## Python API
-
-Basic usage:
-```python
-import rospy
-from phantomx_gazebo.phantomx import PhantomX
-
-rospy.init_node("walker_demo")
-
-phantomx=PhantomX()
-rospy.sleep(1)
-
-phantomx.set_walk_velocity(1,0,0) # Set full speed ahead for 5 secs
-rospy.sleep(5)
-phantomx.set_walk_velocity(0,0,0) # Stop
+## Main Launch Command
+To run the fully integrated system (Physical Robot + SLAM + Pointclouds + RViz):
+```bash
+roslaunch hexapod spider_real_robot_slam.launch
 ```
-## Dependencies
-
-The following ROS packages have to be installed:
-* gazebo_ros_control
-
-## License
-
-This software is provided by Génération Robots http://www.generationrobots.com and HumaRobotics http://www.humarobotics.com under the Simplified BSD license

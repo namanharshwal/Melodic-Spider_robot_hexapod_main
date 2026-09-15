@@ -1,0 +1,56 @@
+<launch>
+  <arg name="use_gui" default="true"/>
+  <arg name="use_rviz" default="true"/>
+  <arg name="gui_topic" default="/phantomx/gui_joint_states"/>
+  <arg name="real_feedback_topic" default="/phantomx/real_joint_states"/>
+
+  <include file="$(find phantomx_gazebo)/launch/phantomx_gazebo.launch"/>
+
+  <node if="$(arg use_gui)"
+        pkg="joint_state_publisher_gui"
+        type="joint_state_publisher_gui"
+        name="joint_state_publisher_gui"
+        output="screen">
+    <remap from="/joint_states" to="$(arg gui_topic)"/>
+  </node>
+
+  <node pkg="phantomx_gazebo"
+        type="jsp_to_gazebo_commands.py"
+        name="jsp_to_gazebo_commands"
+        output="screen">
+    <param name="input_joint_states_topic" value="$(arg gui_topic)"/>
+  </node>
+
+  <node pkg="phantomx_gazebo"
+        type="lsc32_hardware_bridge.py"
+        name="lsc32_hardware_bridge"
+        output="screen"
+        respawn="true"
+        respawn_delay="3.0">
+    <param name="input_joint_states_topic" value="$(arg gui_topic)"/>
+    <param name="publish_feedback" value="false"/>
+  </node>
+
+  <node pkg="phantomx_gazebo"
+        type="real_feedback_publisher.py"
+        name="real_feedback_publisher"
+        output="screen"
+        respawn="true"
+        respawn_delay="2.0">
+    <param name="feedback_topic" value="$(arg real_feedback_topic)"/>
+    <param name="rate" value="20"/>
+  </node>
+
+  <node if="$(arg use_rviz)"
+        pkg="rviz"
+        type="rviz"
+        name="rviz"
+        output="screen"/>
+
+  <node name="teleop"
+        pkg="teleop_twist_keyboard"
+        type="teleop_twist_keyboard.py"
+        output="screen">
+    <remap from="cmd_vel" to="/phantomx/cmd_vel"/>
+  </node>
+</launch>

@@ -1,0 +1,76 @@
+<launch>
+  <!-- ==================================================================== -->
+  <!-- Navigation Launch File: Load Saved Map for Autonomous Driving        -->
+  <!-- ==================================================================== -->
+
+  <!-- Arguments -->
+  <arg name="use_rviz" default="true" />
+  <arg name="map_file" default="$(find hexapod)/../maps/lab_505_marik_center.yaml"/>
+  <arg name="octomap_file" default="$(find hexapod)/../pointcloud/lab_505_marik_center.bt"/>
+
+  <!-- 1. ROBOT DRIVERS & HARDWARE (Same as SLAM launch) -->
+  <param name="robot_description" command="$(find xacro)/xacro --inorder $(find phantomx_description)/urdf/phantomx.xacro" />  
+  <node name="spider_gait_engine" pkg="phantomx_gazebo" type="spider_gait_engine.py" output="screen" />
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen">
+    <remap from="joint_states" to="/phantomx/gui_commands" />
+  </node>
+  <node name="lsc32_hardware_bridge" pkg="phantomx_gazebo" type="lsc32_hardware_bridge.py" output="screen">
+    <param name="port" value="/dev/ttyUSB0"/>
+    <param name="baud" value="9600"/>
+    <param name="input_joint_states_topic" value="/phantomx/gui_commands" />
+  </node>
+
+  <!-- 2. SICK LIDAR & ODOMETRY -->
+  <include file="$(find sick_scan_xd)/launch/sick_multiscan.launch">
+    <arg name="hostname" value="192.168.0.1"/>
+    <arg name="udp_receiver_ip" value="192.168.0.10"/>
+    <arg name="publish_frame_id" value="cloud"/>
+  </include>
+  <node pkg="tf" type="static_transform_publisher" name="hexapod_to_lidar_3d" args="0 0 0.15 0 0 0 base_link_3d cloud 100" />
+  <node pkg="tf" type="static_transform_publisher" name="hexapod_to_lidar_2d" args="0 0 0.15 0 0 0 base_link cloud_flat 100" />
+  
+  <node pkg="phantomx_gazebo" type="spider_odometry.py" name="spider_odometry" output="screen" />
+  <node pkg="phantomx_gazebo" type="mapping_filter.py" name="mapping_filter" output="screen" />
+
+  <!-- ==================================================================== -->
+  <!-- 3. LOAD SAVED MAPS (Replaces SLAM)                                   -->
+  <!-- ==================================================================== -->
+  
+  <!-- Load 2D Map -->
+  <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" />
+
+  <!-- Load 3D Octomap -->
+  <node pkg="octomap_server" type="octomap_server_node" name="octomap_server" args="$(arg octomap_file)" output="screen">
+    <param name="frame_id" type="string" value="map" />
+  </node>
+
+  <!-- 4. AMCL LOCALIZATION (Provides map -> odom TF) -->
+  <node pkg="amcl" type="amcl" name="amcl" output="screen">
+    <param name="odom_frame_id" value="odom"/>
+    <param name="base_frame_id" value="base_link"/>
+    <param name="global_frame_id" value="map"/>
+    <remap from="scan" to="/scan_filtered"/>
+  </node>
+
+  <!-- ==================================================================== -->
+  <!-- 5. MOVE_BASE (Waypoint Navigation)                                   -->
+  <!-- ==================================================================== -->
+  <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+    <param name="base_local_planner" value="base_local_planner/TrajectoryPlannerROS" />
+    <rosparam file="$(find hexapod)/param/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find hexapod)/param/costmap_common_params.yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(find hexapod)/param/local_costmap_params.yaml" command="load" />
+    <rosparam file="$(find hexapod)/param/global_costmap_params.yaml" command="load" />
+    <rosparam file="$(find hexapod)/param/base_local_planner_params.yaml" command="load" />
+    
+    
+  </node>
+
+  <!-- ==================================================================== -->
+  <!-- 6. RVIZ                                                              -->
+                                                              -->
+  <!-- ==================================================================== -->
+  <node if="$(arg use_rviz)" pkg="rviz" type="rviz" name="rviz" output="screen" 
+        args="-d $(find sick_scan_xd)/test/emulator/config/rviz_cfg_multiscan_octomap.rviz"/>
+
+</launch>

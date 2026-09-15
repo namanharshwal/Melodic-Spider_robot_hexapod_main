@@ -1,0 +1,27 @@
+<launch>
+  <!-- 1. Load Robot URDF Description -->
+  <param name="robot_description" command="$(find xacro)/xacro $(find phantomx_description)/urdf/phantomx.xacro" />
+
+  <!-- 2. Robot State Publisher (Reads /joint_states and publishes TF for RViz) -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen" />
+
+  <!-- 3. GUI Sliders (Commands go to a separate topic so it doesn't clash with actual feedback) -->
+  <node name="joint_state_publisher_gui" pkg="joint_state_publisher_gui" type="joint_state_publisher_gui" output="screen">
+    <remap from="joint_states" to="/phantomx/gui_commands" />
+  </node>
+
+  <!-- 4. LSC-32 Hardware Bridge (Listens to sliders and moves physical servos) -->
+  <node name="lsc32_hardware_bridge" pkg="phantomx_gazebo" type="lsc32_hardware_bridge.py" output="screen" respawn="true">
+    <param name="input_joint_states_topic" value="/phantomx/gui_commands" />
+    <param name="publish_feedback" value="false" />
+  </node>
+
+  <!-- 5. Real Feedback Publisher (Reads ADC, publishes actual physical position to /joint_states for RViz to show) -->
+  <node name="real_feedback_publisher" pkg="phantomx_gazebo" type="real_feedback_publisher.py" output="screen" respawn="true">
+    <param name="feedback_topic" value="/joint_states" />
+    <param name="rate" value="20" />
+  </node>
+
+  <!-- 6. Launch RViz -->
+  <node name="rviz" pkg="rviz" type="rviz" output="screen" />
+</launch>

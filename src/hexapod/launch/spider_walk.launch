@@ -1,0 +1,24 @@
+<launch>
+  <!-- Load URDF -->
+  <param name="robot_description" command="$(find xacro)/xacro $(find phantomx_description)/urdf/phantomx.xacro" />
+
+  <!-- Start the Hardware Bridge -->
+  <node name="lsc32_hardware_bridge" pkg="phantomx_gazebo" type="lsc32_hardware_bridge.py" output="screen" respawn="true">
+    <param name="input_joint_states_topic" value="/phantomx/gui_commands" />
+  </node>
+
+  <!-- Start the Encoder Feedback -->
+  <node name="real_feedback_publisher" pkg="phantomx_gazebo" type="real_feedback_publisher.py" output="screen" respawn="true">
+    <param name="feedback_topic" value="/joint_states" />
+    <param name="sim_joint_states_topic" value="/phantomx/gui_commands" />
+  </node>
+
+  <!-- Start the Robot State Publisher for RViz -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+
+  <!-- Start RViz -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find phantomx_gazebo)/rviz/phantomx.rviz" />
+
+  <!-- START THE NEW GAIT ENGINE -->
+  <node name="spider_gait_engine" pkg="phantomx_gazebo" type="spider_gait_engine.py" output="screen" />
+</launch>

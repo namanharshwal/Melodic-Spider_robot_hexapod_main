@@ -1,0 +1,47 @@
+<launch>
+  <arg name="mode" default="hardware_only"/>
+
+  <group if="$(eval arg('mode') == 'sim_only' or arg('mode') == 'both')">
+    <include file="$(find phantomx_gazebo)/launch/phantomx_gazebo.launch"/>
+  </group>
+
+  <group if="$(eval arg('mode') == 'hardware_only' or arg('mode') == 'both')">
+    <param name="robot_description"
+           command="$(find xacro)/xacro $(find phantomx_description)/urdf/phantomx.xacro"/>
+
+    <node pkg="robot_state_publisher"
+          type="robot_state_publisher"
+          name="robot_state_publisher"
+          output="screen"/>
+
+    <node pkg="joint_state_publisher_gui"
+          type="joint_state_publisher_gui"
+          name="joint_state_publisher_gui"
+          output="screen">
+      <remap from="joint_states" to="/phantomx/joint_states"/>
+    </node>
+
+    <node pkg="rviz"
+          type="rviz"
+          name="rviz"
+          output="screen"/>
+  </group>
+
+  <node pkg="phantomx_gazebo"
+        type="lsc32_jspgui_bridge.py"
+        name="lsc32_jspgui_bridge"
+        output="screen"
+        respawn="true"
+        respawn_delay="3.0">
+    <param name="joint_topic" value="/phantomx/joint_states"/>
+  </node>
+
+  <group if="$(eval arg('mode') == 'sim_only' or arg('mode') == 'both')">
+    <node pkg="teleop_twist_keyboard"
+          type="teleop_twist_keyboard.py"
+          name="teleop"
+          output="screen">
+      <remap from="cmd_vel" to="/phantomx/cmd_vel"/>
+    </node>
+  </group>
+</launch>

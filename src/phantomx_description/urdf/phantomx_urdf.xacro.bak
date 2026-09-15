@@ -1,5 +1,5 @@
 <?xml version="1.0" ?>
-<robot name="phantomx" xmlns:xacro="http://www.ros.org/wiki/xacro">
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
 <xacro:property name="connect_offset" value="0.02633" />
 <xacro:property name="thigh_offset_y" value="-0.0645" />
@@ -189,7 +189,7 @@
   <joint name="j_thigh_${suffix}" type="revolute">
     <parent link="c2_${suffix}"/>
     <child link="thigh_${suffix}"/>
-    <origin xyz="0 0 0" rpy="0 3.14159 3.14159" />
+    <origin xyz="0 0 0" rpy=" 0 3.14159 3.14159" />
     <axis xyz="1 0 0" />
     <limit effort="2.8" velocity="5.6548668" lower="-1.570796" upper="1.570796" />
   </joint>
@@ -197,7 +197,7 @@
   <joint name="j_tibia_${suffix}" type="revolute">
     <parent link="thigh_${suffix}"/>
     <child link="tibia_${suffix}"/>
-    <origin xyz="0 ${thigh_offset_y} ${thigh_offset_z}" rpy="0 0 3.14159" />
+    <origin xyz="0 ${thigh_offset_y} ${thigh_offset_z}" rpy="-1.5707 0 3.14159" />
     <axis xyz="1 0 0" />
     <limit effort="2.8" velocity="5.6548668" lower="-1.570796" upper="1.570796" />
   </joint>

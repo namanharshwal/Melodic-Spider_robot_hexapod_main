@@ -1,0 +1,19 @@
+<launch>
+  <!-- 1. Load Robot URDF Description -->
+  <param name="robot_description" textfile="$(find phantomx_description)/urdf/phantomx.urdf" />
+
+  <!-- 2. Robot State Publisher (Converts joint states to TF for RViz) -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen" />
+
+  <!-- 3. Real Hardware ADC Feedback Publisher -->
+  <node name="real_feedback_publisher" pkg="phantomx_gazebo" type="real_feedback_publisher.py" output="screen">
+    <!-- Remap output directly to standard /joint_states so RViz sees it natively -->
+    <param name="feedback_topic" value="/joint_states" />
+  </node>
+
+  <!-- 4. LSC-32 Hardware Bridge (Optional, starts the serial bridge if needed later) -->
+  <node name="lsc32_hardware_bridge" pkg="phantomx_gazebo" type="lsc32_hardware_bridge.py" output="screen" />
+
+  <!-- 5. Launch RViz -->
+  <node name="rviz" pkg="rviz" type="rviz" output="screen" />
+</launch>

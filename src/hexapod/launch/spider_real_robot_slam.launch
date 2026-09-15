@@ -1,0 +1,118 @@
+<launch>
+  <!-- ==================================================================== -->
+  <!-- Unified Launch File: Spider Robot Real Hardware SLAM & Mapping       -->
+  <!-- Optimized for Jetson Eagle 101 - GAZEBO REMOVED to save RAM!         -->
+  <!-- ==================================================================== -->
+
+  <!-- Arguments for configuration -->
+  <arg name="use_rviz" default="true" doc="Start RViz visualization tool"/>
+  <arg name="use_gui_sliders" default="false" doc="Use Joint State Publisher GUI sliders for manual leg configuration"/>
+
+  <!-- IP Configs for SICK MultiScan 100 3D LiDAR -->
+  <arg name="lidar_ip" default="192.168.0.1" doc="SICK LiDAR IP address"/>
+  <arg name="jetson_ip" default="192.168.0.10" doc="Jetson Eagle 101 IP address"/>
+
+  <!-- Serial port configuration for Hiwonder LSC-32 Servo Controller -->
+  <arg name="serial_port" default="/dev/ttyUSB0" doc="USB-to-TTL serial port"/>
+  <arg name="serial_baud" default="9600" doc="Baud rate of serial controller"/>
+
+  <!-- Ensure we use real system time, NOT Gazebo simulated time! -->
+  <param name="/use_sim_time" value="false" />
+
+  <!-- ==================================================================== -->
+  <!-- 1. ROBOT MODEL & GAIT ENGINE                                         -->
+  <!-- ==================================================================== -->
+  
+  <!-- Load Robot URDF to param server (using xacro to generate correct URDF) -->
+  <param name="robot_description" command="$(find xacro)/xacro --inorder $(find phantomx_description)/urdf/phantomx.xacro" />  
+
+  <!-- Spider Gait Engine (Cartesian IK Tripod Gait - NO IMU on motors) -->
+  <node name="spider_gait_engine" pkg="phantomx_gazebo" type="spider_gait_engine.py" output="screen" />
+
+  <!-- Robot State Publisher (Publishes TFs for the robot model in RViz) -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen">
+    <remap from="joint_states" to="/phantomx/gui_commands" unless="$(arg use_gui_sliders)"/>
+    <remap from="joint_states" to="/phantomx/gui_joint_states" if="$(arg use_gui_sliders)"/>
+  </node>
+
+  <!-- ==================================================================== -->
+  <!-- 2. OPTIONAL MANUAL SLIDER CONTROL                                    -->
+  <!-- ==================================================================== -->
+  <group if="$(arg use_gui_sliders)">
+    <!-- Joint state publisher GUI -->
+    <node pkg="joint_state_publisher_gui" type="joint_state_publisher_gui" name="joint_state_publisher_gui" output="screen">
+      <remap from="/joint_states" to="/phantomx/gui_joint_states"/>
+    </node>
+  </group>
+
+  <!-- ==================================================================== -->
+  <!-- 3. PHYSICAL ROBOT SERVO BRIDGE (LSC-32 UART DRIVER)                  -->
+  <!-- ==================================================================== -->
+  <node name="lsc32_hardware_bridge" pkg="phantomx_gazebo" type="lsc32_hardware_bridge.py" output="screen" respawn="true" respawn_delay="3.0">
+    <param name="port" value="$(arg serial_port)"/>
+    <param name="baud" value="$(arg serial_baud)"/>
+    <param name="publish_feedback" value="false"/>
+    <param name="input_joint_states_topic" value="/phantomx/gui_joint_states" if="$(arg use_gui_sliders)"/>
+    <param name="input_joint_states_topic" value="/phantomx/gui_commands" unless="$(arg use_gui_sliders)"/>
+  </node>
+
+  <!-- ==================================================================== -->
+  <!-- 4. SICK MULTISCAN 100 3D LIDAR DRIVER & TRANSFORMS                   -->
+  <!-- ==================================================================== -->
+  <include file="$(find sick_scan_xd)/launch/sick_multiscan.launch">
+    <arg name="hostname" value="$(arg lidar_ip)"/>
+    <arg name="udp_receiver_ip" value="$(arg jetson_ip)"/>
+    <arg name="publish_frame_id" value="cloud"/>
+    <arg name="tf_publish_rate" value="0.0"/>
+  </include>
+
+  <!-- Static transform publisher: base_link_3d to true 3D LiDAR cloud frame -->
+  <node pkg="tf" type="static_transform_publisher" name="hexapod_to_lidar_3d" args="0 0 0.15 0 0 0 base_link_3d cloud 100" />
+  
+  <!-- Static transform publisher: base_link to flat 2D LiDAR cloud frame -->
+  <node pkg="tf" type="static_transform_publisher" name="hexapod_to_lidar_2d" args="0 0 0.15 0 0 0 base_link cloud_flat 100" />
+
+  <!-- ==================================================================== -->
+  <!-- 5. ODOMETRY, SLAM & MAPPING PIPELINE                                 -->
+  <!-- ==================================================================== -->
+  
+  <!-- IMU + Kinematic Odometry Generator (Provides odom -> base_link TF) -->
+  <node pkg="phantomx_gazebo" type="spider_odometry.py" name="spider_odometry" output="screen" />
+
+  <!-- Mapping Filter: Blocks LiDAR scans when not moving forward to prevent turning corruption -->
+  <node pkg="phantomx_gazebo" type="mapping_filter.py" name="mapping_filter" output="screen" />
+
+  <!-- 2D SLAM using slam_toolbox -->
+  <!-- Uses the direct base_link TF with inverted Pitch/Roll to stabilize the LaserScan naturally! -->
+  <node pkg="slam_toolbox" type="async_slam_toolbox_node" name="slam_toolbox" output="screen">
+    <rosparam command="load" file="$(find slam_toolbox)/config/mapper_params_online_async.yaml" />
+    <param name="odom_frame" value="odom"/>
+    <param name="map_frame" value="map"/>
+    <param name="base_frame" value="base_link"/>
+    <remap from="scan" to="/scan_filtered"/> 
+  </node>
+
+  <!-- 3D Volumetric Map builder using octomap_server -->
+  <node pkg="octomap_server" type="octomap_server_node" name="octomap_server" output="screen">
+    <param name="resolution" value="0.05" />
+    <param name="frame_id" type="string" value="map" />
+    <param name="base_frame_id" type="string" value="base_link" />
+    <param name="sensor_model/max_range" value="5.0" />
+    
+    <!-- CRITICAL FIX: Ignore the floor and ceiling to prevent black lines in the 2D map! -->
+    <!-- Since the LiDAR is at Z=0.15m and floor is at Z=0.0m, we only map points between 0.2m and 2.0m height -->
+    <param name="pointcloud_min_z" value="0.2" /> 
+    <param name="pointcloud_max_z" value="2.0" />
+    <param name="occupancy_min_z" value="0.2" />
+    <param name="occupancy_max_z" value="2.0" />
+    
+    <remap from="cloud_in" to="/cloud_filtered" />
+  </node>
+
+  <!-- ==================================================================== -->
+  <!-- 6. RVIZ VISUALIZATION                                                -->
+  <!-- ==================================================================== -->
+  <node if="$(arg use_rviz)" pkg="rviz" type="rviz" name="rviz" output="screen" 
+        args="-d $(find sick_scan_xd)/test/emulator/config/rviz_cfg_multiscan_octomap.rviz"/>
+
+</launch>

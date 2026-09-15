@@ -1,0 +1,28 @@
+<launch>
+  <!-- 1. Load Robot URDF Description -->
+  <param name="robot_description" command="$(find xacro)/xacro --inorder $(find phantomx_description)/urdf/phantomx.xacro" />  
+
+  <!-- 2. Robot State Publisher (Converts joint states to TF for RViz) -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen">
+    <remap from="joint_states" to="/phantomx/gui_commands"/>
+  </node>
+
+  <!-- 3. Real Hardware Servo Bridge (LSC-32 UART DRIVER) -->
+  <node name="lsc32_hardware_bridge" pkg="phantomx_gazebo" type="lsc32_hardware_bridge.py" output="screen" respawn="true" respawn_delay="3.0">
+    <param name="port" value="/dev/ttyUSB0"/>
+    <param name="baud" value="9600"/>
+    <param name="publish_feedback" value="false"/>
+    <param name="input_joint_states_topic" value="/phantomx/gui_commands"/>
+  </node>
+
+  <!-- 4. Spider Gait Engine (True Cartesian IK with Sit/Stand FSM) -->
+  <node name="spider_gait_engine" pkg="phantomx_gazebo" type="spider_gait_engine.py" output="screen" />
+
+  <!-- 5. Keyboard Teleop -->
+  <node name="teleop" pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" output="screen">
+    <remap from="cmd_vel" to="/cmd_vel"/>
+  </node>
+
+  <!-- 6. Launch RViz -->
+  <node name="rviz" pkg="rviz" type="rviz" output="screen" />
+</launch>
