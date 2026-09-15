@@ -41,10 +41,9 @@ class SpiderOdometry:
         
     def cmd_cb(self, msg):
         # Perfectly synchronized with spider_gait_engine.py physical stride lengths!
-        # CYCLE_TIME reduced from 0.8 to 0.6, so multipliers are increased by 1.33x
-        self.target_vx = msg.linear.x * 0.166
-        self.target_vy = msg.linear.y * 0.066
-        self.target_vth = msg.angular.z * 0.533
+        self.target_vx = msg.linear.x * 0.125
+        self.target_vy = msg.linear.y * 0.050
+        self.target_vth = msg.angular.z * 0.40
 
     def imu_cb(self, msg):
         quaternion = (

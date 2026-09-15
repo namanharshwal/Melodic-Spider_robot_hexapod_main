@@ -27,7 +27,7 @@ SWING_HEIGHT = 0.04  # 4cm lift height
 STRIDE_X     = 0.05  # 5cm forward/backward step
 STRIDE_Y     = 0.02  # 2cm strafe left/right step
 STRIDE_T     = 0.04  # 4cm turning offset
-CYCLE_TIME   = 0.6   # Seconds per full step cycle
+CYCLE_TIME   = 0.8   # Seconds per full step cycle
 
 JOINTS = {
     'lf': ['j_c1_lf', 'j_thigh_lf', 'j_tibia_lf'],
