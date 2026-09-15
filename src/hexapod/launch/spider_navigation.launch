@@ -71,6 +71,6 @@
                                                               -->
   <!-- ==================================================================== -->
   <node if="$(arg use_rviz)" pkg="rviz" type="rviz" name="rviz" output="screen" 
-        args="-d $(find sick_scan_xd)/test/emulator/config/rviz_cfg_multiscan_octomap.rviz"/>
+        args="-d $(find hexapod)/rviz/spider.rviz"/>
 
 </launch>

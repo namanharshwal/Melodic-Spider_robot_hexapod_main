@@ -61,11 +61,19 @@ class SpiderOdometry:
             self.imu_yaw_offset = raw_yaw
             self.imu_pitch_offset = raw_pitch
             self.imu_roll_offset = raw_roll
+            self.last_raw_yaw = raw_yaw
             self.use_imu = True
             
-        # The robot MUST depend on the IMU correctly!
-        # The IMU tracks physical foot-slipping during strafing which pure math cannot feel.
-        self.th = raw_yaw - self.imu_yaw_offset
+        # The IMU tracks physical foot-slipping during strafing.
+        # CRITICAL FIX: Lock the yaw when the robot is completely stopped!
+        # If the robot is stopped, physical settling/jitter in the IMU smears the SLAM map.
+        delta_yaw = raw_yaw - getattr(self, 'last_raw_yaw', raw_yaw)
+        self.last_raw_yaw = raw_yaw
+        
+        # Only accumulate yaw if the robot is actually trying to move or turn
+        if abs(self.target_vx) > 0.001 or abs(self.target_vy) > 0.001 or abs(self.target_vth) > 0.001 or abs(self.vx) > 0.01 or abs(self.vy) > 0.01 or abs(self.vth) > 0.01:
+            self.th += delta_yaw
+            
         self.roll = raw_roll - self.imu_roll_offset
         self.pitch = raw_pitch - self.imu_pitch_offset
 
